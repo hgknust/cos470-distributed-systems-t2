@@ -13,6 +13,9 @@ typedef struct sumArgs {
 void sum(sumArgs *arguments) {
     
     printf("%d - thread\n", arguments -> start);
+    printf("%d - thread\n", arguments -> start);
+    printf("%d - thread\n", arguments -> start);
+    printf("%d - thread\n", arguments -> start);
 };
 
 /*
@@ -58,16 +61,18 @@ int main(void) {
 
     // Dynamic memory allocation for n-threads
     pthread_t * thread = malloc(sizeof(pthread_t)*threads);
+    sumArgs *args;
 
     for (int i = 0; i < threads; i++) {
 
-        sumArgs args;
-        args.start = i;
-        args.end = 7;
-        args.nArray = arrayN;
+        // Dynamically create args 
+        args = (sumArgs*)malloc(sizeof(sumArgs));
+        args -> start = i;
+        args -> end = 7;
+        args -> nArray = arrayN;
 
         // Create threads
-        if(pthread_create(&thread[i], NULL, &sum, (sumArgs *) &args)) {
+        if(pthread_create(&thread[i], NULL, &sum, (sumArgs *) args)) {
             printf ("Falha ao criar thread.\n");
             exit (1);
         }
