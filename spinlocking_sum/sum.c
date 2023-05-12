@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <math.h>
+#include <time.h>
 
 
 typedef struct sumArgs {
@@ -14,6 +15,7 @@ typedef struct sumArgs {
 void sum(sumArgs *arguments) {
     
     printf("%d - %d thread\n", arguments -> start, arguments -> end);
+    printf("N start %d\n", arguments -> nArray[arguments -> start]);
 };
 
 /*
@@ -58,7 +60,12 @@ int main(void) {
 
 
     printf("Starting execution with %d threads.\n", threads);
-
+    #include <time.h>
+     
+    // Time OP
+    clock_t start, end; 
+    start = clock();
+     
     // Dynamic memory allocation for n-threads
     pthread_t * thread = malloc(sizeof(pthread_t)*threads);
     sumArgs *args;
@@ -88,6 +95,8 @@ int main(void) {
         pthread_join(thread[i], NULL);
     }
 
+    // Compute and print time spent
+    printf("CPU time spent: %f s\n", (clock() - start)/CLOCKS_PER_SEC);
     free(arrayN);
 
     return 0;
