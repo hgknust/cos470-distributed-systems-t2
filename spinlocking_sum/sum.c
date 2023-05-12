@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <math.h>
 
 
 typedef struct sumArgs {
@@ -12,10 +13,7 @@ typedef struct sumArgs {
 
 void sum(sumArgs *arguments) {
     
-    printf("%d - thread\n", arguments -> start);
-    printf("%d - thread\n", arguments -> start);
-    printf("%d - thread\n", arguments -> start);
-    printf("%d - thread\n", arguments -> start);
+    printf("%d - %d thread\n", arguments -> start, arguments -> end);
 };
 
 /*
@@ -42,6 +40,9 @@ int main(void) {
     srand(time(NULL));
     long sizeN = 10000000;
     printf("Starting execution with N=%ld\n", sizeN);
+    int threads = 3;
+    int binSize =  floor(sizeN/threads);
+    printf("Bin size: %d\n", binSize);
 
     // Create the sizeN
     signed char* arrayN = generateRandomVector(10000000);
@@ -56,7 +57,6 @@ int main(void) {
     printf("%ld \n", baselineSum);
 
 
-    int threads = 4;
     printf("Starting execution with %d threads.\n", threads);
 
     // Dynamic memory allocation for n-threads
@@ -65,15 +65,20 @@ int main(void) {
 
     for (int i = 0; i < threads; i++) {
 
-        // Dynamically create args 
+        // Dynamically create args distributing sum
         args = (sumArgs*)malloc(sizeof(sumArgs));
-        args -> start = i;
-        args -> end = 7;
+        args -> start = i * binSize;
+        args -> end = (i + 1) * binSize;
         args -> nArray = arrayN;
+
+        // On the last thread, assign end to sizeN to prevent segfault
+        if (i == threads - 1) {
+            args -> end = sizeN;
+        }
 
         // Create threads
         if(pthread_create(&thread[i], NULL, &sum, (sumArgs *) args)) {
-            printf ("Falha ao criar thread.\n");
+            printf ("Failed to spawn thread.\n");
             exit (1);
         }
     }
