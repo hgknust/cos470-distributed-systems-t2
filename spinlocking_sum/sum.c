@@ -16,6 +16,11 @@ void sum(sumArgs *arguments) {
     
     printf("%d - %d thread\n", arguments -> start, arguments -> end);
     printf("N start %d\n", arguments -> nArray[arguments -> start]);
+    long start = arguments -> start;
+    long partSum = 0;
+    for (start; start < arguments->end; start++) {
+        arguments -> nArray[start] + 1;
+    }
 };
 
 /*
@@ -96,7 +101,8 @@ int main(void) {
     }
 
     // Compute and print time spent
-    printf("CPU time spent: %f s\n", (clock() - start)/CLOCKS_PER_SEC);
+    end = clock();
+    printf("CPU time spent: %f s\n", ((double) (end - start)) / CLOCKS_PER_SEC);
     free(arrayN);
 
     return 0;
