@@ -6,6 +6,8 @@
 #include <time.h>
 
 
+long sharedSumResult = 0;
+
 typedef struct sumArgs {
     int start;
     int end;
@@ -19,7 +21,7 @@ void sum(sumArgs *arguments) {
     long start = arguments -> start;
     long partSum = 0;
     for (start; start < arguments->end; start++) {
-        arguments -> nArray[start] + 1;
+        sharedSumResult = sharedSumResult + arguments -> nArray[start];
     }
 };
 
@@ -102,7 +104,15 @@ int main(void) {
 
     // Compute and print time spent
     end = clock();
+
+    // Check sums
+    if (sharedSumResult != baselineSum) {
+        printf("Error!\n");
+        exit(1);
+    }
+
     printf("CPU time spent: %f s\n", ((double) (end - start)) / CLOCKS_PER_SEC);
+    printf("Result %ld matches with single-threaded sum\n", sharedSumResult);
     free(arrayN);
 
     return 0;
