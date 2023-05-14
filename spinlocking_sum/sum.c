@@ -4,24 +4,56 @@
 #include <unistd.h>
 #include <math.h>
 #include <time.h>
+#include <stdatomic.h>
 
 
 long sharedSumResult = 0;
 
+// boolean TestAndSet (boolean &target){
+//     boolean rv = target;
+//     target = true;
+//     return rv;
+// }
+
+typedef struct lockType {
+    volatile atomic_flag flag;
+} lockType;
+
 typedef struct sumArgs {
     int start;
     int end;
-    char *nArray;
+    signed char *nArray;
+    volatile atomic_flag *lock;
 } sumArgs;
 
+
+// Aquire exclusive access to critical zone
+void aquire(volatile atomic_flag *lock) {
+    while (atomic_flag_test_and_set(lock)==1) {
+        // Busy-wait loop
+    } 
+};
+
+// Release critical-zone access lock
+void release(volatile atomic_flag *lock) {
+    atomic_flag_clear(lock);
+
+};
+
+/*
+    Perform sum on part of the array, with critical zone control.
+*/
 void sum(sumArgs *arguments) {
     
-    printf("%d - %d thread\n", arguments -> start, arguments -> end);
-    printf("N start %d\n", arguments -> nArray[arguments -> start]);
+    printf("thread spawned with range [%d, %d]\n", arguments -> start, arguments -> end);
     long start = arguments -> start;
     long partSum = 0;
-    for (start; start < arguments->end; start++) {
+    for (;start < arguments->end; start++) {
+
+        // Control critical zone access
+        aquire(arguments -> lock);
         sharedSumResult = sharedSumResult + arguments -> nArray[start];
+        release(arguments -> lock);
     }
 };
 
@@ -43,15 +75,20 @@ signed char* generateRandomVector(long size) {
     return vector;
 }
 
+
 int main(void) {
 
     // Initialize random number generator
     srand(time(NULL));
-    long sizeN = 10000000;
+    long sizeN = 100000;
     printf("Starting execution with N=%ld\n", sizeN);
     int threads = 3;
     int binSize =  floor(sizeN/threads);
     printf("Bin size: %d\n", binSize);
+
+    // Initialize lock
+    volatile atomic_flag lock;
+    atomic_flag_clear(&lock);
 
     // Create the sizeN
     signed char* arrayN = generateRandomVector(10000000);
@@ -84,6 +121,7 @@ int main(void) {
         args -> start = i * binSize;
         args -> end = (i + 1) * binSize;
         args -> nArray = arrayN;
+        args -> lock = &lock;
 
         // On the last thread, assign end to sizeN to prevent segfault
         if (i == threads - 1) {
@@ -107,7 +145,7 @@ int main(void) {
 
     // Check sums
     if (sharedSumResult != baselineSum) {
-        printf("Error!\n");
+        printf("Error!\nBaseline: %ld\nThreaded: %ld\n", baselineSum, sharedSumResult);
         exit(1);
     }
 
