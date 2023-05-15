@@ -76,13 +76,20 @@ signed char* generateRandomVector(long size) {
 }
 
 
-int main(void) {
+int main(int argc, char *argv[]) {
+
+    // Parse N
+    char *nArg;
+    long sizeN = strtol(argv[1], &nArg, 10);
+    printf("Starting execution with N=%ld\n", sizeN);
+
+    // Parse K
+    char *kArg;
+    int threads = (int) strtol(argv[2], &kArg, 10);
+    printf("Using %d threads.\n", threads);
 
     // Initialize random number generator
     srand(time(NULL));
-    long sizeN = 100000;
-    printf("Starting execution with N=%ld\n", sizeN);
-    int threads = 3;
     int binSize =  floor(sizeN/threads);
     printf("Bin size: %d\n", binSize);
 
@@ -102,10 +109,6 @@ int main(void) {
     }
     printf("%ld \n", baselineSum);
 
-
-    printf("Starting execution with %d threads.\n", threads);
-    #include <time.h>
-     
     // Time OP
     clock_t start, end; 
     start = clock();
