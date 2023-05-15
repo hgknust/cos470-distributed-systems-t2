@@ -7,9 +7,11 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <math.h>
+#include <cmath>
 #include <semaphore.h>
+#include <random>
 #include <unistd.h>
+
 
 #if defined(__APPLE__) && defined(__MACH__)
 #define USE_NAMED_SEMAPHORES
@@ -114,10 +116,10 @@ struct RingBuffer {
     size_t size;
 
     explicit RingBuffer(size_t size):
-        m_buffer(std::vector<T>(size)),
-        s_items(0),
-        s_space(size),
-        size(size) {}
+            m_buffer(std::vector<T>(size)),
+            s_items(0),
+            s_space(size),
+            size(size) {}
 
     void push(T value) {
         // Wait until there is space in the buffer
@@ -160,19 +162,26 @@ struct RandomIntProducer {
 
     RandomIntProducer(RingBuffer<int>& buffer, int num_items) : buffer(buffer), num_items(num_items) {}
 
+    int generate_random_number() {
+        std::random_device random_device;
+        auto mt = std::mt19937(random_device());
+        auto dist = std::uniform_int_distribution<int>(1, 10'000'000);
+        return dist(mt);
+    }
+
     void operator()() {
         for (auto i = 0; i < num_items; ++i) {
-            buffer.push(rand() % num_items + 1);
+            buffer.push(generate_random_number());
         }
     }
 };
 
 struct PrimeNumberConsumer {
     RingBuffer<int>& buffer;
-    std::vector<int> primes;
     int primes_found{0};
+    int numbers_consumed{0};
 
-    explicit PrimeNumberConsumer(RingBuffer<int>& buffer) : buffer(buffer) {}
+    explicit PrimeNumberConsumer(RingBuffer<int>& buffer): buffer(buffer) {}
 
     static bool is_prime(int number) {
         if (number == 1) return false;
@@ -194,23 +203,32 @@ struct PrimeNumberConsumer {
 
             if (item == -1) {
                 buffer.push(-1);
-                return;
+                break;
             }
 
-            auto is_prime = true;
-            for (auto i = 2; i < item; ++i) {
-                if (item % i == 0) {
-                    is_prime = false;
-                    break;
-                }
+            if (is_prime(item)) {
+                primes_found++;
             }
 
-            if (is_prime) primes_found++;
+            numbers_consumed++;
         }
     }
 };
 
-double run_test(int buffer_size, int num_producers, int num_consumers, int num_items) {
+void run_test() {
+    auto buffer = RingBuffer<int>(10);
+
+    auto producer = std::thread(RandomIntProducer(buffer, 10));
+    auto consumer = std::thread(PrimeNumberConsumer(buffer));
+
+    producer.join();
+
+    buffer.push(-1);
+
+    consumer.join();
+}
+
+double run_benchmark(int buffer_size, int num_producers, int num_consumers, int num_items) {
     auto buffer = RingBuffer<int>(buffer_size);
     auto producer_items = num_items / num_producers;
 
@@ -237,37 +255,27 @@ double run_test(int buffer_size, int num_producers, int num_consumers, int num_i
     return duration_us / 1000.0;
 }
 
-// TODO: Remove benchmark loop. Receive parameters as arguments and benchmark using a bash script instead
-int main() {
-    const auto num_items = 10000;
-    const auto max_num_threads = 8;
-    const auto num_runs = 10;
-
-    std::cout << std::left << std::setw(15) << "buffer_size"
-              << std::left << std::setw(20) << "producer_threads"
-              << std::left << std::setw(20) << "consumer_threads"
-              << std::left << std::setw(15) << "avg_time" << std::endl;
-
-    for (auto buffer_size = 16; buffer_size <= (1 << 12); buffer_size <<= 1) {
-       for (auto num_producers = 1; num_producers <= max_num_threads; ++num_producers) {
-           for (auto num_consumers = 1; num_consumers <= max_num_threads; ++num_consumers) {
-                std::vector<double> runtimes(num_runs);
-
-                for (auto i = 0; i < num_runs; ++i) {
-                    runtimes[i] = run_test(buffer_size, num_producers, num_consumers, num_items);
-                }
-
-                auto avg_time = std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / num_runs;
-
-                std::cout.precision(6);
-
-                std::cout << std::left << std::setw(15) << buffer_size
-                          << std::left << std::setw(20) << num_producers
-                          << std::left << std::setw(20) << num_consumers
-                          << std::left << std::setw(15) << avg_time << std::endl;
-           }
-       }
+int main(int argc, char* argv[]) {
+    if (argc != 6) {
+        std::cerr << "Usage: " << argv[0] << " buffer_size num_producers num_consumers num_items samples" << std::endl;
+        return 1;
     }
+
+    const auto buffer_size = std::stoi(argv[1]);
+    const auto num_producers = std::stoi(argv[2]);
+    const auto num_consumers = std::stoi(argv[3]);
+    const auto num_items = std::stoi(argv[4]);
+    const auto samples = std::stoi(argv[5]);
+
+    auto runtimes = std::vector<double>();
+
+    for (auto i = 0; i <= samples; i++) {
+        auto duration_ms = run_benchmark(buffer_size, num_producers, num_consumers, num_items);
+        runtimes.push_back(duration_ms);
+    }
+
+    auto avg_time = std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / samples;
+    std::cout << avg_time << std::endl;
 
     return 0;
 }
