@@ -9,19 +9,13 @@
 
 long sharedSumResult = 0;
 
-// boolean TestAndSet (boolean &target){
-//     boolean rv = target;
-//     target = true;
-//     return rv;
-// }
-
 typedef struct lockType {
     volatile atomic_flag flag;
 } lockType;
 
 typedef struct sumArgs {
-    int start;
-    int end;
+    long start;
+    long end;
     signed char *nArray;
     volatile atomic_flag *lock;
 } sumArgs;
@@ -45,7 +39,7 @@ void release(volatile atomic_flag *lock) {
 */
 void sum(sumArgs *arguments) {
     
-    printf("thread spawned with range [%d, %d]\n", arguments -> start, arguments -> end);
+    printf("thread spawned with range [%ld, %ld]\n", arguments -> start, arguments -> end);
     long start = arguments -> start;
     long partSum = 0;
     for (;start < arguments->end; start++) {
@@ -98,7 +92,7 @@ int main(int argc, char *argv[]) {
     atomic_flag_clear(&lock);
 
     // Create the sizeN
-    signed char* arrayN = generateRandomVector(10000000);
+    signed char* arrayN = generateRandomVector(sizeN);
 
     // Sum with one thread to compare results
     printf("Single-threaded sum result: ");

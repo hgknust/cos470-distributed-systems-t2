@@ -5,7 +5,7 @@ import numpy as np
 
 # Params
 n_range = [int(x) for x in [1e7, 1e8, 1e9]]
-k_range = [1, 2, 4, 8, 16]
+k_range = [1, 2, 4, 8, 16, 32, 64, 128, 256]
 repetitions = 10
 
 # Create DF
@@ -33,4 +33,4 @@ for n in n_range:
 
         df = df.append({"N": n, "K": k, "time (s)": np.array(times).mean()}, ignore_index=True)
 
-df.to_csv("results.csv")
+df.to_csv("results.csv", index=False)
