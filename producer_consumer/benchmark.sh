@@ -5,13 +5,19 @@ set -Eeuo pipefail
 num_items=100000
 samples=10
 
-source_file="$(realpath producer_consumer.cpp)"
-executable="bin/producer_consumer_$(md5sum "$source_file" | cut -c -8)"
+source_file="producer_consumer.cpp"
 
-if [[ ! -f "$executable" || "$source_file" -nt "$executable" ]]; then
+if [[ $OSTYPE == 'darwin'* ]]; then
+  executable="bin/producer_consumer_$(md5 -r "$source_file" | cut -c -8)"
+else
+  executable="bin/producer_consumer_$(md5sum "$source_file" | cut -c -8)"
+fi
+
+
+if [[ ! -f "$executable" ]]; then
     echo "Compiling source"
     mkdir -p bin
-    g++ -o "$executable" -O2 -pthread "$source_file"
+    g++ -o "$executable" -O2 -pthread --std=c++17 "$source_file"
 fi
 
 echo "buffer_size,producer_threads,consumer_threads,avg_time" > results.csv
