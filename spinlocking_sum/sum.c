@@ -5,6 +5,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdatomic.h>
+#include <sys/time.h>
 
 
 long sharedSumResult = 0;
@@ -20,6 +21,11 @@ typedef struct sumArgs {
     volatile atomic_flag *lock;
 } sumArgs;
 
+long getMicrotime(){
+	struct timeval currentTime;
+	gettimeofday(&currentTime, NULL);
+	return currentTime.tv_sec * (int)1e6 + currentTime.tv_usec;
+}
 
 // Aquire exclusive access to critical zone
 void aquire(volatile atomic_flag *lock) {
@@ -105,8 +111,8 @@ int main(int argc, char *argv[]) {
     printf("%ld \n", baselineSum);
 
     // Time OP
-    clock_t start, end; 
-    start = clock();
+    long start, end; 
+    start = getMicrotime();
      
     // Dynamic memory allocation for n-threads
     pthread_t * thread = malloc(sizeof(pthread_t)*threads);
@@ -139,7 +145,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Compute and print time spent
-    end = clock();
+    end= getMicrotime();
 
     // Check sums
     if (sharedSumResult != baselineSum) {
@@ -147,7 +153,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    printf("CPU time spent: %f s\n", ((double) (end - start)) / CLOCKS_PER_SEC);
+    double diff = (end-start) * 1e-6;
+    printf("CPU time spent: %lf s\n", diff);
     printf("Result %ld matches with single-threaded sum\n", sharedSumResult);
     free(arrayN);
 
