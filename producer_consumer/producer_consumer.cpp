@@ -206,7 +206,6 @@ struct RandomIntProducer {
 struct PrimeNumberConsumer {
     RingBuffer<int>& buffer;
     int primes_found{0};
-    int numbers_consumed{0};
 
     explicit PrimeNumberConsumer(RingBuffer<int>& buffer): buffer(buffer) {}
 
@@ -239,8 +238,6 @@ struct PrimeNumberConsumer {
                    std::cout << item, "é primo" << std::endl;
                 #endif
             }
-
-            numbers_consumed++;
         }
     }
 };
