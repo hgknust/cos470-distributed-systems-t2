@@ -8,9 +8,12 @@
 #include <mutex>
 #include <condition_variable>
 #include <cmath>
-#include <semaphore.h>
+#include <fstream>
+#include <iostream>
 #include <random>
+#include <cinttypes>
 #include <unistd.h>
+#include <semaphore.h>
 
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -114,12 +117,13 @@ struct RingBuffer {
     size_t head{0};
     size_t tail{0};
     size_t size;
+    std::vector<int8_t> operations{};
 
     explicit RingBuffer(size_t size):
-            m_buffer(std::vector<T>(size)),
-            s_items(0),
-            s_space(size),
-            size(size) {}
+        m_buffer(std::vector<T>(size)),
+        s_items(0),
+        s_space(size),
+        size(size) {}
 
     void push(T value) {
         // Wait until there is space in the buffer
@@ -129,6 +133,10 @@ struct RingBuffer {
         m_buffer.acquire([&](std::vector<T>& buffer) {
             buffer[head] = std::move(value);
             head = (head + 1) % size;
+
+            #ifdef DEBUG
+                operations.push_back(1);
+            #endif
         });
 
         // "Notify" that there is a new item in the buffer
@@ -146,6 +154,10 @@ struct RingBuffer {
         m_buffer.acquire([&](std::vector<T>& buffer) {
             result = std::move(buffer[tail]);
             tail = (tail + 1) % size;
+
+            #ifdef DEBUG
+                operations.push_back(-1);
+            #endif
         });
 
         // "Notify" that there is a new free space in the buffer
@@ -153,6 +165,21 @@ struct RingBuffer {
         s_space.release();
 
         return result;
+    }
+
+    void dump_logs() {
+        // Write the operations into a file
+        // Use the current time in millis as a file suffix
+        #ifdef DEBUG
+            auto current_millis = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            auto file = std::ofstream("logs/operations_" + std::to_string(size) + "_" + std::to_string(current_millis) + ".txt");
+            
+            for (auto operation : operations) {
+                file << operation << std::endl;
+            }
+
+            file.close();
+        #endif
     }
 };
 
@@ -208,25 +235,15 @@ struct PrimeNumberConsumer {
 
             if (is_prime(item)) {
                 primes_found++;
+                #ifdef DEBUG
+                   std::cout << item, "é primo" << std::endl;
+                #endif
             }
 
             numbers_consumed++;
         }
     }
 };
-
-void run_test() {
-    auto buffer = RingBuffer<int>(10);
-
-    auto producer = std::thread(RandomIntProducer(buffer, 10));
-    auto consumer = std::thread(PrimeNumberConsumer(buffer));
-
-    producer.join();
-
-    buffer.push(-1);
-
-    consumer.join();
-}
 
 double run_benchmark(int buffer_size, int num_producers, int num_consumers, int num_items) {
     auto buffer = RingBuffer<int>(buffer_size);
@@ -251,6 +268,8 @@ double run_benchmark(int buffer_size, int num_producers, int num_consumers, int 
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration_us = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+
+    buffer.dump_logs();
 
     return duration_us / 1000.0;
 }
