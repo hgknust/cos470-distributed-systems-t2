@@ -43,12 +43,13 @@ void sum(sumArgs *arguments) {
     long start = arguments -> start;
     long partSum = 0;
     for (;start < arguments->end; start++) {
+        partSum = partSum + arguments -> nArray[start];
+    }
 
         // Control critical zone access
         aquire(arguments -> lock);
-        sharedSumResult = sharedSumResult + arguments -> nArray[start];
+        sharedSumResult = sharedSumResult + partSum;
         release(arguments -> lock);
-    }
 };
 
 /*
